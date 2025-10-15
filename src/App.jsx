@@ -1,19 +1,9 @@
 import { useState } from 'react'
-import booksData from './data/books.json'
 import './App.css'
 
-function Book({ title, price, subtitle, image, url, isbn13, isSelected, onSelect, onRemove }) {
-  const handleBookClick = (e) => {
-    // Prevent selection when clicking on remove button or learn more link
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') {
-      return;
-    }
-    onSelect(isbn13);
-  };
-
-  const handleRemove = (e) => {
-    e.stopPropagation();
-    onRemove(isbn13);
+function Book({ title, author, image, isSelected, onSelect }) {
+  const handleBookClick = () => {
+    onSelect();
   };
 
   return (
@@ -23,23 +13,16 @@ function Book({ title, price, subtitle, image, url, isbn13, isSelected, onSelect
     >
       {image && <img src={image} alt={title} className="book-image" />}
       <h3>{title}</h3>
-      <p className="price">{price}</p>
-      <a href={url} target="_blank" rel="noopener noreferrer" className="learn-more">Learn more</a>
-      <button className="remove-button" onClick={handleRemove}>
-        Remove
-      </button>
+      {author && <p className="author">by {author}</p>}
     </div>
   )
 }
 
-function AddBookModal({ isOpen, onClose }) {
+function AddBookModal({ isOpen, onClose, onAddBook }) {
   const [formData, setFormData] = useState({
     title: '',
     author: '',
-    publisher: '',
-    publicationYear: '',
-    language: '',
-    pages: ''
+    url: ''
   });
 
   const handleInputChange = (e) => {
@@ -52,17 +35,19 @@ function AddBookModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // For now, just log the form data and close modal
-    console.log('New book data:', formData);
+    // Add the new book
+    onAddBook({
+      title: formData.title,
+      author: formData.author,
+      image: formData.url,
+      selected: false
+    });
     onClose();
     // Reset form
     setFormData({
       title: '',
       author: '',
-      publisher: '',
-      publicationYear: '',
-      language: '',
-      pages: ''
+      url: ''
     });
   };
 
@@ -108,52 +93,14 @@ function AddBookModal({ isOpen, onClose }) {
           </div>
           
           <div className="form-group">
-            <label htmlFor="publisher">Publisher:</label>
+            <label htmlFor="url">Cover Image URL:</label>
             <input
-              type="text"
-              id="publisher"
-              name="publisher"
-              value={formData.publisher}
+              type="url"
+              id="url"
+              name="url"
+              value={formData.url}
               onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="publicationYear">Publication Year:</label>
-            <input
-              type="number"
-              id="publicationYear"
-              name="publicationYear"
-              value={formData.publicationYear}
-              onChange={handleInputChange}
-              min="1000"
-              max="2025"
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="language">Language:</label>
-            <input
-              type="text"
-              id="language"
-              name="language"
-              value={formData.language}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="pages">Pages:</label>
-            <input
-              type="number"
-              id="pages"
-              name="pages"
-              value={formData.pages}
-              onChange={handleInputChange}
-              min="1"
+              placeholder="https://example.com/image.png"
               required
             />
           </div>
@@ -173,9 +120,9 @@ function AddBookModal({ isOpen, onClose }) {
 }
 
 function App() {
-  const [books, setBooks] = useState(booksData)
+  // Start with empty books array - books only appear when added
+  const [books, setBooks] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedBookId, setSelectedBookId] = useState(null)
 
   const handleAddBook = () => {
     setIsModalOpen(true)
@@ -185,16 +132,30 @@ function App() {
     setIsModalOpen(false)
   }
 
-  const handleBookSelect = (bookId) => {
-    setSelectedBookId(selectedBookId === bookId ? null : bookId)
+  const handleAddNewBook = (newBook) => {
+    const bookWithId = {
+      ...newBook,
+      id: Date.now() + Math.random(),
+      selected: false
+    }
+    setBooks([...books, bookWithId])
   }
 
-  const handleBookRemove = (bookId) => {
-    setBooks(books.filter(book => book.isbn13 !== bookId))
-    // Deselect if the removed book was selected
-    if (selectedBookId === bookId) {
-      setSelectedBookId(null)
-    }
+  const handleBookSelect = (bookId) => {
+    // Deselect all books first, then select the clicked one
+    setBooks(books.map(book => ({
+      ...book,
+      selected: book.id === bookId ? !book.selected : false
+    })))
+  }
+
+  const handleDeleteSelected = () => {
+    setBooks(books.filter(book => !book.selected))
+  }
+
+  const handleUpdateSelected = () => {
+    // No-op for now
+    console.log('Update button clicked')
   }
 
   return (
@@ -205,22 +166,28 @@ function App() {
       
       <main className="main-content">
         <div className="container">
-          <div className="add-book-card" onClick={handleAddBook}>
-            <div className="add-book-text">Add Book +</div>
+          <div className="controls">
+            <div className="add-book-card" onClick={handleAddBook}>
+              <div className="add-book-text">Add Book +</div>
+            </div>
+            <div className="action-buttons">
+              <button className="edit-button" onClick={handleUpdateSelected}>
+                Edit
+              </button>
+              <button className="delete-button" onClick={handleDeleteSelected}>
+                Delete
+              </button>
+            </div>
           </div>
           <div className="books-grid">
             {books.map((book) => (
               <Book 
-                key={book.isbn13} 
+                key={book.id} 
                 title={book.title} 
-                price={book.price}
-                subtitle={book.subtitle}
+                author={book.author}
                 image={book.image}
-                url={book.url}
-                isbn13={book.isbn13}
-                isSelected={selectedBookId === book.isbn13}
-                onSelect={handleBookSelect}
-                onRemove={handleBookRemove}
+                isSelected={book.selected}
+                onSelect={() => handleBookSelect(book.id)}
               />
             ))}
           </div>
@@ -233,7 +200,8 @@ function App() {
 
       <AddBookModal 
         isOpen={isModalOpen} 
-        onClose={handleCloseModal} 
+        onClose={handleCloseModal}
+        onAddBook={handleAddNewBook}
       />
     </div>
   )
