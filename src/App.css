@@ -30,6 +30,37 @@
   text-align: center;
 }
 
+.filter-container {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.filter-label {
+  color: #6A053F;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.filter-select {
+  padding: 0.5rem 1rem;
+  border: 2px solid #FFCCE5;
+  border-radius: 8px;
+  background-color: white;
+  color: #6A053F;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #FF6B9D;
+}
+
 /* Main Content */
 .main-content {
   background-color: #FFF0F5;
@@ -238,6 +269,13 @@
   font-style: italic;
 }
 
+.book .publisher {
+  color: #600020;
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0 0;
+  font-weight: 500;
+}
+
 /* Footer */
 .footer {
   background-color: #FF99CC;
@@ -412,4 +450,13 @@
 .submit-button:hover {
   background-color: #FF5B8D;
   transform: translateY(-1px);
+}
+
+.no-books-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #6A053F;
+  font-size: 1.2rem;
+  font-weight: bold;
 }

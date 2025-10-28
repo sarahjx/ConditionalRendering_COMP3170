@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
-function Book({ title, author, image, isSelected, onSelect }) {
+function Book({ title, author, image, publisher, isSelected, onSelect }) {
   const handleBookClick = () => {
     onSelect();
   };
@@ -14,16 +14,36 @@ function Book({ title, author, image, isSelected, onSelect }) {
       {image && <img src={image} alt={title} className="book-image" />}
       <h3>{title}</h3>
       {author && <p className="author">by {author}</p>}
+      {publisher && <p className="publisher">{publisher}</p>}
     </div>
   )
 }
 
-function AddBookModal({ isOpen, onClose, onAddBook }) {
+function BookModal({ isOpen, onClose, onSaveBook, bookToEdit, mode }) {
   const [formData, setFormData] = useState({
     title: '',
     author: '',
+    publisher: '',
     url: ''
   });
+
+  useEffect(() => {
+    if (mode === 'edit' && bookToEdit) {
+      setFormData({
+        title: bookToEdit.title || '',
+        author: bookToEdit.author || '',
+        publisher: bookToEdit.publisher || '',
+        url: bookToEdit.image || ''
+      });
+    } else {
+      setFormData({
+        title: '',
+        author: '',
+        publisher: '',
+        url: ''
+      });
+    }
+  }, [bookToEdit, mode, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -35,24 +55,22 @@ function AddBookModal({ isOpen, onClose, onAddBook }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add the new book
-    onAddBook({
+    onSaveBook({
       title: formData.title,
       author: formData.author,
+      publisher: formData.publisher,
       image: formData.url,
-      selected: false
     });
     onClose();
-    // Reset form
     setFormData({
       title: '',
       author: '',
+      publisher: '',
       url: ''
     });
   };
 
   const handleModalClick = (e) => {
-    // Close modal when clicking on backdrop
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -64,7 +82,7 @@ function AddBookModal({ isOpen, onClose, onAddBook }) {
     <div className="modal-backdrop" onClick={handleModalClick}>
       <div className="modal-content">
         <div className="modal-header">
-          <h2>Add New Book</h2>
+          <h2>{mode === 'edit' ? 'Edit Book' : 'Add New Book'}</h2>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="book-form">
@@ -93,6 +111,18 @@ function AddBookModal({ isOpen, onClose, onAddBook }) {
           </div>
           
           <div className="form-group">
+            <label htmlFor="publisher">Publisher:</label>
+            <input
+              type="text"
+              id="publisher"
+              name="publisher"
+              value={formData.publisher}
+              onChange={handleInputChange}
+              placeholder="e.g., Penguin Random House"
+            />
+          </div>
+          
+          <div className="form-group">
             <label htmlFor="url">Cover Image URL:</label>
             <input
               type="url"
@@ -110,7 +140,7 @@ function AddBookModal({ isOpen, onClose, onAddBook }) {
               Cancel
             </button>
             <button type="submit" className="submit-button">
-              Add Book
+              {mode === 'edit' ? 'Update Book' : 'Add Book'}
             </button>
           </div>
         </form>
@@ -120,25 +150,49 @@ function AddBookModal({ isOpen, onClose, onAddBook }) {
 }
 
 function App() {
-  // Start with empty books array - books only appear when added
-  const [books, setBooks] = useState([])
+  // Load books from localStorage or start with empty array
+  const [books, setBooks] = useState(() => {
+    const savedBooks = localStorage.getItem('books');
+    return savedBooks ? JSON.parse(savedBooks) : [];
+  })
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState('add') // 'add' or 'edit'
+  const [bookToEdit, setBookToEdit] = useState(null)
+  const [filterPublisher, setFilterPublisher] = useState('all')
+
+  // Save books to localStorage whenever books change
+  useEffect(() => {
+    localStorage.setItem('books', JSON.stringify(books));
+  }, [books]);
 
   const handleAddBook = () => {
+    setModalMode('add');
+    setBookToEdit(null);
     setIsModalOpen(true)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
+    setBookToEdit(null);
   }
 
-  const handleAddNewBook = (newBook) => {
-    const bookWithId = {
-      ...newBook,
-      id: Date.now() + Math.random(),
-      selected: false
+  const handleSaveBook = (bookData) => {
+    if (modalMode === 'edit' && bookToEdit) {
+      // Update existing book
+      setBooks(books.map(book => 
+        book.id === bookToEdit.id 
+          ? { ...book, ...bookData, selected: false }
+          : book
+      ))
+    } else {
+      // Add new book
+      const bookWithId = {
+        ...bookData,
+        id: Date.now() + Math.random(),
+        selected: false
+      }
+      setBooks([...books, bookWithId])
     }
-    setBooks([...books, bookWithId])
   }
 
   const handleBookSelect = (bookId) => {
@@ -154,14 +208,43 @@ function App() {
   }
 
   const handleUpdateSelected = () => {
-    // No-op for now
-    console.log('Update button clicked')
+    const selectedBook = books.find(book => book.selected);
+    if (selectedBook) {
+      setModalMode('edit');
+      setBookToEdit(selectedBook);
+      setIsModalOpen(true);
+    }
   }
+
+  // Get unique publishers for filter dropdown
+  const publishers = ['all', ...new Set(books.map(book => book.publisher).filter(Boolean))];
+
+  // Filter books based on selected publisher
+  const filteredBooks = filterPublisher === 'all'
+    ? books
+    : books.filter(book => book.publisher === filterPublisher);
 
   return (
     <div className="app">
       <header className="header">
         <h1>Sarah's Awesome Book Catalog</h1>
+        <div className="filter-container">
+          <label htmlFor="publisher-filter" className="filter-label">
+            Filter by Publisher:
+          </label>
+          <select
+            id="publisher-filter"
+            className="filter-select"
+            value={filterPublisher}
+            onChange={(e) => setFilterPublisher(e.target.value)}
+          >
+            {publishers.map(publisher => (
+              <option key={publisher} value={publisher}>
+                {publisher === 'all' ? 'All Publishers' : publisher}
+              </option>
+            ))}
+          </select>
+        </div>
       </header>
       
       <main className="main-content">
@@ -180,16 +263,23 @@ function App() {
             </div>
           </div>
           <div className="books-grid">
-            {books.map((book) => (
-              <Book 
-                key={book.id} 
-                title={book.title} 
-                author={book.author}
-                image={book.image}
-                isSelected={book.selected}
-                onSelect={() => handleBookSelect(book.id)}
-              />
-            ))}
+            {filteredBooks.length === 0 ? (
+              <div className="no-books-message">
+                <p>No books to display{filterPublisher !== 'all' && ` for ${filterPublisher}`}</p>
+              </div>
+            ) : (
+              filteredBooks.map((book) => (
+                <Book 
+                  key={book.id} 
+                  title={book.title} 
+                  author={book.author}
+                  image={book.image}
+                  publisher={book.publisher}
+                  isSelected={book.selected}
+                  onSelect={() => handleBookSelect(book.id)}
+                />
+              ))
+            )}
           </div>
         </div>
       </main>
@@ -198,10 +288,12 @@ function App() {
         <p>© 2025 Sarah's Book Catalog</p>
       </footer>
 
-      <AddBookModal 
+      <BookModal 
         isOpen={isModalOpen} 
         onClose={handleCloseModal}
-        onAddBook={handleAddNewBook}
+        onSaveBook={handleSaveBook}
+        bookToEdit={bookToEdit}
+        mode={modalMode}
       />
     </div>
   )
