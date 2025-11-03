@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-function Book({ title, author, image, publisher, isSelected, onSelect }) {
+function Book({ title, author, image, publisher, isSelected, onSelect, isOnLoan }) {
   const handleBookClick = () => {
     onSelect();
   };
 
   return (
     <div 
-      className={`book ${isSelected ? 'selected' : ''}`}
+      className={`book ${isSelected ? 'selected' : ''} ${isOnLoan ? 'on-loan' : ''}`}
       onClick={handleBookClick}
     >
       {image && <img src={image} alt={title} className="book-image" />}
       <h3>{title}</h3>
       {author && <p className="author">by {author}</p>}
       {publisher && <p className="publisher">{publisher}</p>}
+      {isOnLoan && <p className="loan-status">On Loan</p>}
     </div>
   )
 }
@@ -149,6 +150,140 @@ function BookModal({ isOpen, onClose, onSaveBook, bookToEdit, mode }) {
   );
 }
 
+function LoanManagement({ books, loans, onAddLoan }) {
+  const [formData, setFormData] = useState({
+    borrower: '',
+    bookId: '',
+    loanPeriod: 1
+  });
+
+  // Get available books (not currently on loan)
+  const availableBooks = books.filter(book => {
+    return !loans.some(loan => loan.bookId === book.id);
+  });
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'loanPeriod' ? parseInt(value) : value
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (formData.borrower && formData.bookId) {
+      onAddLoan({
+        borrower: formData.borrower,
+        bookId: formData.bookId,
+        loanPeriod: formData.loanPeriod,
+        loanDate: new Date().toISOString()
+      });
+      setFormData({
+        borrower: '',
+        bookId: '',
+        loanPeriod: 1
+      });
+    }
+  };
+
+  // Get loaned books with full details
+  const loanedBooksList = loans.map(loan => {
+    const book = books.find(b => b.id === loan.bookId);
+    if (!book) return null;
+    
+    const loanDate = new Date(loan.loanDate);
+    const dueDate = new Date(loanDate);
+    dueDate.setDate(dueDate.getDate() + (loan.loanPeriod * 7));
+    
+    return {
+      ...loan,
+      bookTitle: book.title,
+      dueDate: dueDate.toLocaleDateString()
+    };
+  }).filter(Boolean);
+
+  return (
+    <div className="loan-management">
+      <h2>Loan Management</h2>
+      
+      {availableBooks.length > 0 ? (
+        <form onSubmit={handleSubmit} className="loan-form">
+          <div className="form-group">
+            <label htmlFor="borrower">Borrower Name:</label>
+            <input
+              type="text"
+              id="borrower"
+              name="borrower"
+              value={formData.borrower}
+              onChange={handleInputChange}
+              required
+              placeholder="Enter borrower's name"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="bookId">Book:</label>
+            <select
+              id="bookId"
+              name="bookId"
+              value={formData.bookId}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">Select a book</option>
+              {availableBooks.map(book => (
+                <option key={book.id} value={book.id}>
+                  {book.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="loanPeriod">Loan Period (weeks):</label>
+            <input
+              type="number"
+              id="loanPeriod"
+              name="loanPeriod"
+              value={formData.loanPeriod}
+              onChange={handleInputChange}
+              min="1"
+              max="4"
+              required
+            />
+          </div>
+          
+          <div className="form-actions">
+            <button type="submit" className="submit-button">
+              Create Loan
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="no-books-message">
+          <p>All books are currently on loan.</p>
+        </div>
+      )}
+      
+      {loanedBooksList.length > 0 && (
+        <div className="loaned-books-section">
+          <h3>Loaned Books</h3>
+          <div className="loaned-books-list">
+            {loanedBooksList.map((loan, index) => (
+              <div key={index} className="loaned-book-item">
+                <p><strong>Borrower:</strong> {loan.borrower}</p>
+                <p><strong>Book:</strong> {loan.bookTitle}</p>
+                <p><strong>Due Date:</strong> {loan.dueDate}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   // Load books from localStorage or start with empty array
   const [books, setBooks] = useState(() => {
@@ -159,11 +294,23 @@ function App() {
   const [modalMode, setModalMode] = useState('add') // 'add' or 'edit'
   const [bookToEdit, setBookToEdit] = useState(null)
   const [filterPublisher, setFilterPublisher] = useState('all')
+  const [currentView, setCurrentView] = useState('books') // 'books' or 'loans'
+  
+  // Load loans from localStorage or start with empty array
+  const [loans, setLoans] = useState(() => {
+    const savedLoans = localStorage.getItem('loans');
+    return savedLoans ? JSON.parse(savedLoans) : [];
+  })
 
   // Save books to localStorage whenever books change
   useEffect(() => {
     localStorage.setItem('books', JSON.stringify(books));
   }, [books]);
+
+  // Save loans to localStorage whenever loans change
+  useEffect(() => {
+    localStorage.setItem('loans', JSON.stringify(loans));
+  }, [loans]);
 
   const handleAddBook = () => {
     setModalMode('add');
@@ -224,64 +371,102 @@ function App() {
     ? books
     : books.filter(book => book.publisher === filterPublisher);
 
+  // Handle adding a new loan
+  const handleAddLoan = (loanData) => {
+    setLoans([...loans, loanData]);
+  };
+
+  // Check if a book is on loan
+  const isBookOnLoan = (bookId) => {
+    return loans.some(loan => loan.bookId === bookId);
+  };
+
   return (
     <div className="app">
       <header className="header">
         <h1>Sarah's Awesome Book Catalog</h1>
-        <div className="filter-container">
-          <label htmlFor="publisher-filter" className="filter-label">
-            Filter by Publisher:
-          </label>
-          <select
-            id="publisher-filter"
-            className="filter-select"
-            value={filterPublisher}
-            onChange={(e) => setFilterPublisher(e.target.value)}
-          >
-            {publishers.map(publisher => (
-              <option key={publisher} value={publisher}>
-                {publisher === 'all' ? 'All Publishers' : publisher}
-              </option>
-            ))}
-          </select>
+        <div className="header-controls">
+          <div className="filter-container">
+            <label htmlFor="publisher-filter" className="filter-label">
+              Filter by Publisher:
+            </label>
+            <select
+              id="publisher-filter"
+              className="filter-select"
+              value={filterPublisher}
+              onChange={(e) => setFilterPublisher(e.target.value)}
+              disabled={currentView === 'loans'}
+            >
+              {publishers.map(publisher => (
+                <option key={publisher} value={publisher}>
+                  {publisher === 'all' ? 'All Publishers' : publisher}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="view-toggle">
+            <button 
+              className={`view-button ${currentView === 'books' ? 'active' : ''}`}
+              onClick={() => setCurrentView('books')}
+            >
+              Book Listing
+            </button>
+            <button 
+              className={`view-button ${currentView === 'loans' ? 'active' : ''}`}
+              onClick={() => setCurrentView('loans')}
+            >
+              Loan Management
+            </button>
+          </div>
         </div>
       </header>
       
       <main className="main-content">
-        <div className="container">
-          <div className="controls">
-            <div className="add-book-card" onClick={handleAddBook}>
-              <div className="add-book-text">Add Book +</div>
-            </div>
-            <div className="action-buttons">
-              <button className="edit-button" onClick={handleUpdateSelected}>
-                Edit
-              </button>
-              <button className="delete-button" onClick={handleDeleteSelected}>
-                Delete
-              </button>
-            </div>
-          </div>
-          <div className="books-grid">
-            {filteredBooks.length === 0 ? (
-              <div className="no-books-message">
-                <p>No books to display{filterPublisher !== 'all' && ` for ${filterPublisher}`}</p>
+        {currentView === 'books' ? (
+          <div className="container">
+            <div className="controls">
+              <div className="add-book-card" onClick={handleAddBook}>
+                <div className="add-book-text">Add Book +</div>
               </div>
-            ) : (
-              filteredBooks.map((book) => (
-                <Book 
-                  key={book.id} 
-                  title={book.title} 
-                  author={book.author}
-                  image={book.image}
-                  publisher={book.publisher}
-                  isSelected={book.selected}
-                  onSelect={() => handleBookSelect(book.id)}
-                />
-              ))
-            )}
+              <div className="action-buttons">
+                <button className="edit-button" onClick={handleUpdateSelected}>
+                  Edit
+                </button>
+                <button className="delete-button" onClick={handleDeleteSelected}>
+                  Delete
+                </button>
+              </div>
+            </div>
+            <div className="books-grid">
+              {filteredBooks.length === 0 ? (
+                <div className="no-books-message">
+                  <p>No books to display{filterPublisher !== 'all' && ` for ${filterPublisher}`}</p>
+                </div>
+              ) : (
+                filteredBooks.map((book) => (
+                  <Book 
+                    key={book.id} 
+                    title={book.title} 
+                    author={book.author}
+                    image={book.image}
+                    publisher={book.publisher}
+                    isSelected={book.selected}
+                    onSelect={() => handleBookSelect(book.id)}
+                    isOnLoan={isBookOnLoan(book.id)}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="loan-management-container">
+            <LoanManagement 
+              books={books} 
+              loans={loans} 
+              onAddLoan={handleAddLoan}
+            />
+          </div>
+        )}
       </main>
       
       <footer className="footer">

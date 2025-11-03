@@ -30,12 +30,48 @@
   text-align: center;
 }
 
-.filter-container {
+.header-controls {
   margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.filter-container {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.view-button {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #FFCCE5;
+  border-radius: 8px;
+  background-color: white;
+  color: #6A053F;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-button:hover {
+  background-color: #FFF0F5;
+  border-color: #FF6B9D;
+}
+
+.view-button.active {
+  background-color: #FF6B9D;
+  color: white;
+  border-color: #FF6B9D;
 }
 
 .filter-label {
@@ -276,6 +312,22 @@
   font-weight: 500;
 }
 
+.book.on-loan {
+  opacity: 0.7;
+  border-color: #999;
+}
+
+.book .loan-status {
+  color: #FF4444;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin: 0.5rem 0 0 0;
+  padding: 0.25rem 0.5rem;
+  background-color: #FFE5E5;
+  border-radius: 4px;
+  display: inline-block;
+}
+
 /* Footer */
 .footer {
   background-color: #FF99CC;
@@ -459,4 +511,80 @@
   color: #6A053F;
   font-size: 1.2rem;
   font-weight: bold;
+}
+
+/* Loan Management Styles */
+.loan-management-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.loan-management {
+  background-color: white;
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.loan-management h2 {
+  color: #6A053F;
+  font-size: 2rem;
+  margin: 0 0 2rem 0;
+  text-align: center;
+}
+
+.loan-form {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #FFCCE5;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #FF6B9D;
+}
+
+.loaned-books-section {
+  margin-top: 2rem;
+}
+
+.loaned-books-section h3 {
+  color: #6A053F;
+  font-size: 1.5rem;
+  margin: 0 0 1rem 0;
+}
+
+.loaned-books-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.loaned-book-item {
+  background-color: #FFF0F5;
+  border: 2px solid #FFCCE5;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loaned-book-item p {
+  margin: 0.5rem 0;
+  color: #6A053F;
+  font-size: 1rem;
+}
+
+.loaned-book-item strong {
+  color: #800040;
 }
