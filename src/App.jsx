@@ -9,8 +9,9 @@ function Book({ title, author, image, publisher, price, published, pages, url, i
 
   const handleViewDetails = (e) => {
     e.stopPropagation();
+    e.preventDefault();
     if (url) {
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -197,9 +198,14 @@ function LoanManagement({ books, loans, onAddLoan }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.borrower && formData.bookId) {
+      // Convert bookId to number to match book.id type
+      const bookId = typeof formData.bookId === 'string' 
+        ? parseFloat(formData.bookId) 
+        : formData.bookId;
+      
       onAddLoan({
         borrower: formData.borrower,
-        bookId: formData.bookId,
+        bookId: bookId,
         loanPeriod: formData.loanPeriod,
         loanDate: new Date().toISOString()
       });
@@ -467,7 +473,10 @@ function App() {
 
   // Check if a book is on loan
   const isBookOnLoan = (bookId) => {
-    return loans.some(loan => loan.bookId === bookId);
+    return loans.some(loan => {
+      // Compare as both string and number to handle type mismatches
+      return loan.bookId == bookId; // Use == for type coercion
+    });
   };
 
   return (
