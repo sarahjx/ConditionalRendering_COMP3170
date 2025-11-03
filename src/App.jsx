@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import sampleBooks from './data/books.json'
 
-function Book({ title, author, image, publisher, isSelected, onSelect, isOnLoan }) {
+function Book({ title, author, image, publisher, price, published, pages, url, isSelected, onSelect, isOnLoan }) {
   const handleBookClick = () => {
     onSelect();
+  };
+
+  const handleViewDetails = (e) => {
+    e.stopPropagation();
+    if (url) {
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -13,8 +21,24 @@ function Book({ title, author, image, publisher, isSelected, onSelect, isOnLoan 
     >
       {image && <img src={image} alt={title} className="book-image" />}
       <h3>{title}</h3>
-      {author && <p className="author">by {author}</p>}
-      {publisher && <p className="publisher">{publisher}</p>}
+      <p className="author">{author || 'Unknown Author'}</p>
+      <p className="published-info">
+        Published: {published || '2025'} • {pages || 499} pages
+      </p>
+      {price && <p className="price">{price}</p>}
+      {url ? (
+        <a 
+          href={url} 
+          className="learn-more" 
+          onClick={handleViewDetails}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View Details
+        </a>
+      ) : (
+        <span className="learn-more">View Details</span>
+      )}
       {isOnLoan && <p className="loan-status">On Loan</p>}
     </div>
   )
@@ -266,9 +290,9 @@ function LoanManagement({ books, loans, onAddLoan }) {
         </div>
       )}
       
-      {loanedBooksList.length > 0 && (
-        <div className="loaned-books-section">
-          <h3>Loaned Books</h3>
+      <div className="loaned-books-section">
+        <h3>Loaned Books</h3>
+        {loanedBooksList.length > 0 ? (
           <div className="loaned-books-list">
             {loanedBooksList.map((loan, index) => (
               <div key={index} className="loaned-book-item">
@@ -278,17 +302,42 @@ function LoanManagement({ books, loans, onAddLoan }) {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="no-loans-message">
+            <p>No books are currently on loan.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function App() {
-  // Load books from localStorage or start with empty array
+  // Load books from localStorage or initialize with sample books
   const [books, setBooks] = useState(() => {
     const savedBooks = localStorage.getItem('books');
-    return savedBooks ? JSON.parse(savedBooks) : [];
+    if (savedBooks) {
+      const parsed = JSON.parse(savedBooks);
+      // If localStorage has books, use them; otherwise initialize with sample books
+      if (parsed && parsed.length > 0) {
+        return parsed;
+      }
+    }
+    // Initialize with sample books from books.json
+    // Page counts: 499, 510, 357, 420, 380, 450, 365, 395, 410, 340
+    const pageCounts = [499, 510, 357, 420, 380, 450, 365, 395, 410, 340];
+    return sampleBooks.map((book, index) => ({
+      id: Date.now() + index,
+      title: book.title,
+      author: book.subtitle || '',
+      publisher: '',
+      image: book.image,
+      price: book.price || '',
+      published: '2025',
+      pages: pageCounts[index] || 499,
+      url: book.url || '',
+      selected: false
+    }));
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('add') // 'add' or 'edit'
@@ -301,6 +350,46 @@ function App() {
     const savedLoans = localStorage.getItem('loans');
     return savedLoans ? JSON.parse(savedLoans) : [];
   })
+
+  // Initialize sample books on first mount if books array is empty
+  useEffect(() => {
+    // Check if we have no books (either from localStorage being empty or having empty array)
+    if (books.length === 0) {
+      // Page counts: 499, 510, 357, 420, 380, 450, 365, 395, 410, 340
+      const pageCounts = [499, 510, 357, 420, 380, 450, 365, 395, 410, 340];
+      const initializedBooks = sampleBooks.map((book, index) => ({
+        id: Date.now() + index,
+        title: book.title,
+        author: book.subtitle || '',
+        publisher: '',
+        image: book.image,
+        price: book.price || '',
+        published: '2025',
+        pages: pageCounts[index] || 499,
+        url: book.url || '',
+        selected: false
+      }));
+      setBooks(initializedBooks);
+    } else {
+      // Migrate existing books to add missing fields
+      const pageCounts = [499, 510, 357, 420, 380, 450, 365, 395, 410, 340];
+      const updatedBooks = books.map((book, index) => {
+        // Find matching sample book if available
+        const sampleBook = sampleBooks.find(sb => sb.title === book.title);
+        return {
+          ...book,
+          price: book.price || sampleBook?.price || '',
+          published: book.published || '2025',
+          pages: book.pages || pageCounts[index % pageCounts.length] || 499,
+          url: book.url || sampleBook?.url || ''
+        };
+      });
+      // Only update if something changed
+      if (JSON.stringify(books) !== JSON.stringify(updatedBooks)) {
+        setBooks(updatedBooks);
+      }
+    }
+  }, []); // Run only on mount
 
   // Save books to localStorage whenever books change
   useEffect(() => {
@@ -450,6 +539,10 @@ function App() {
                     author={book.author}
                     image={book.image}
                     publisher={book.publisher}
+                    price={book.price}
+                    published={book.published}
+                    pages={book.pages}
+                    url={book.url}
                     isSelected={book.selected}
                     onSelect={() => handleBookSelect(book.id)}
                     isOnLoan={isBookOnLoan(book.id)}
